@@ -10,7 +10,7 @@ public class Dealer : MonoBehaviour
     
     [Header("Deck of cards")]
     public List<Sprite> fullDeck;
-    List<Sprite> tempDeck;
+    [SerializeField] List<Sprite> tempDeck;
 
     [Header("Deal information")]
     public Transform[] spawnPoints;
@@ -29,9 +29,15 @@ public class Dealer : MonoBehaviour
     [SerializeField] int[] suitesTo13;
     [SerializeField] int[] suites;
     [SerializeField] GameObject[] dealerCards = new GameObject[5];
+
+    [Header("Player Info")]
+    [SerializeField] GameObject[] players;
+    [SerializeField] GameObject[] playerCards = new GameObject[2];
     PhotonView view;
 
     [SerializeField] GameObject textFile;
+    Photon.Realtime.Player[] photonPlayers;
+    
     
     private void Start() {
 
@@ -41,20 +47,25 @@ public class Dealer : MonoBehaviour
         suites = new int[5];
 
         view = GetComponent<PhotonView>();
-        
+
+        view.RPC("GetPlayers", RpcTarget.AllBuffered);
+
+        photonPlayers = PhotonNetwork.PlayerList;
+
+        foreach(Photon.Realtime.Player p in photonPlayers){
+            Debug.Log(p);
+        }
     }
 
     
     public void StartGame(){
         view.RPC("StartGameRPC", RpcTarget.All);
+
+        view.RPC("DealCardsToPlayer", RpcTarget.All);
+    
     }
 
-    [PunRPC]
-    void StartGameRPC(){
-        gameStarted = true;
-    }
-
-    private void Update(){
+        private void Update(){
 
         if(!PhotonNetwork.IsMasterClient){
             return;
@@ -68,34 +79,33 @@ public class Dealer : MonoBehaviour
             timeBtwCards = 5f;
             if(round == 0){
                 //Debug.Log("Flop");
-                view.RPC("playCard", RpcTarget.All, UnityEngine.Random.Range(0,tempDeck.Count), 0);
-                view.RPC("playCard", RpcTarget.All, UnityEngine.Random.Range(0,tempDeck.Count), 1);
-                view.RPC("playCard", RpcTarget.All, UnityEngine.Random.Range(0,tempDeck.Count), 2);
+                view.RPC("playCard", RpcTarget.AllBuffered, UnityEngine.Random.Range(0,tempDeck.Count), 0);
+                view.RPC("playCard", RpcTarget.AllBuffered, UnityEngine.Random.Range(0,tempDeck.Count), 1);
+                view.RPC("playCard", RpcTarget.AllBuffered, UnityEngine.Random.Range(0,tempDeck.Count), 2);
 
-                view.RPC("valuesToArray",RpcTarget.All, dealerCards[0].GetComponent<Image>().sprite.name);
-                view.RPC("valuesToArray",RpcTarget.All, dealerCards[1].GetComponent<Image>().sprite.name);
-                view.RPC("valuesToArray",RpcTarget.All, dealerCards[2].GetComponent<Image>().sprite.name);
+                view.RPC("valuesToArray",RpcTarget.AllBuffered, dealerCards[0].GetComponent<Image>().sprite.name);
+                view.RPC("valuesToArray",RpcTarget.AllBuffered, dealerCards[1].GetComponent<Image>().sprite.name);
+                view.RPC("valuesToArray",RpcTarget.AllBuffered, dealerCards[2].GetComponent<Image>().sprite.name);
 
                 round++;
             }
             else if(round == 1){
                 //Debug.Log("River");
-                view.RPC("playCard", RpcTarget.All, UnityEngine.Random.Range(0,tempDeck.Count), 3);
+                view.RPC("playCard", RpcTarget.AllBuffered, UnityEngine.Random.Range(0,tempDeck.Count), 3);
 
-                view.RPC("valuesToArray",RpcTarget.All, dealerCards[3].GetComponent<Image>().sprite.name);
+                view.RPC("valuesToArray",RpcTarget.AllBuffered, dealerCards[3].GetComponent<Image>().sprite.name);
 
                 round++;
             }
             else if(round == 2){
                 //Debug.Log("Turn");
-                view.RPC("playCard", RpcTarget.All, UnityEngine.Random.Range(0,tempDeck.Count), 4);
-                view.RPC("valuesToArray",RpcTarget.All, dealerCards[4].GetComponent<Image>().sprite.name);
+                view.RPC("playCard", RpcTarget.AllBuffered, UnityEngine.Random.Range(0,tempDeck.Count), 4);
+                view.RPC("valuesToArray",RpcTarget.AllBuffered, dealerCards[4].GetComponent<Image>().sprite.name);
                 round++;
             }
             else{
-                Debug.Log("Reset");
-                round = 0;
-                NewRound();
+                //Debug.Log("Reset");
+                view.RPC("NewRound",RpcTarget.AllBuffered);
             }
 
             view.RPC("HighestHandText", RpcTarget.All);
@@ -106,16 +116,58 @@ public class Dealer : MonoBehaviour
             
         
     }
+
+
+    [PunRPC]
+    void GetPlayers(){
+        players = GameObject.FindGameObjectsWithTag("Player");
+
+    }
+
+    [PunRPC]
+    void StartGameRPC(){
+        gameStarted = true;
+    }
+
+    [PunRPC]
     private void NewRound(){
         tempDeck = fullDeck;
-        
+        round = 0;
+        timeBtwCards = 5f;
+
         for(int i = 0; i < dealerCards.Length; i++){
             dealerCards[i].GetComponent<Image>().color = new Color(255f,255f,255f,0f);       
+        }
+
+        for(int i = 0; i < photonPlayers.Length; i++){
+            view.RPC("DealCardsToPlayer", photonPlayers[i]);
         }
 
         valuesTo13 = new int[13];
         suitesTo13 = new int[13];
         suites = new int[5];
+    }
+
+    [PunRPC]
+    void DealCardsToPlayer(){
+        int card1 = UnityEngine.Random.Range(0,tempDeck.Count);
+        view.RPC("discardCard", RpcTarget.AllBuffered, card1);
+        int card2 = UnityEngine.Random.Range(0,tempDeck.Count);
+        view.RPC("discardCard", RpcTarget.AllBuffered, card2);
+    
+        Sprite cardSprite1 = tempDeck[card1];
+        Sprite cardSprite2 = tempDeck[card2];
+
+        playerCards[0].GetComponent<Image>().sprite = cardSprite1;
+        playerCards[1].GetComponent<Image>().sprite = cardSprite2;
+
+        
+    }
+
+    [PunRPC]
+    void discardCard(int card){
+        Sprite currentCard = tempDeck[card];
+        tempDeck.Remove(currentCard);
     }
 
     
@@ -166,7 +218,7 @@ public class Dealer : MonoBehaviour
 
         string cardValue = cardName.Substring(secondIndexOfUnder+1);
 
-        Debug.Log("Suite: " + cardValue);
+        //Debug.Log("Suite: " + cardValue);
 
         int value = -1;
 
@@ -192,12 +244,12 @@ public class Dealer : MonoBehaviour
     [PunRPC]
     private void valuesToArray(string currentCard){
 
-        Debug.Log(currentCard);
+        //Debug.Log(currentCard);
 
         int value = CardToValue(currentCard);
         int suite = CardToSuite(currentCard);
 
-        Debug.Log("value: " + value + " suite: " + suite);
+        //Debug.Log("value: " + value + " suite: " + suite);
 
         valuesTo13[value]++;
         suitesTo13[value] = suite;

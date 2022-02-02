@@ -47,6 +47,12 @@ MonoBehaviour:
   - playCard
   - valuesToArray
   - HighestHandTest
+  - HighestHandText
+  - NewRound
+  - DealCardsToPlayer
+  - discardCard
+  - AddPlayer
+  - GetPlayers
   DisableAutoOpenWizard: 1
   ShowSettings: 0
   DevRegionSetOnce: 1
