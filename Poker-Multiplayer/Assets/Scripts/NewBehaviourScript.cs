@@ -5,7 +5,7 @@ using UnityEngine.UI;
 using System;
 using Photon.Pun;
 
-public class Dealer : MonoBehaviour
+public class NewBehaviourScript : MonoBehaviour
 {
     
     [Header("Deck of cards")]
@@ -18,8 +18,6 @@ public class Dealer : MonoBehaviour
     float timeBtwCards = 5f;
     public GameObject card;
     int round = 0;
-    bool gameStarted = false;
-
     
 
     //temp Card Values
@@ -32,8 +30,10 @@ public class Dealer : MonoBehaviour
     PhotonView view;
     
     private void Start() {
+        Debug.Log("Starting");
 
         tempDeck = fullDeck;
+        dealerCards = new GameObject[5];
         valuesTo13 = new int[13];
         suitesTo13 = new int[13];
         suites = new int[4];
@@ -49,56 +49,62 @@ public class Dealer : MonoBehaviour
 
     [PunRPC]
     void StartGameRPC(){
-        gameStarted = true;
-    }
-
-    private void Update(){
-
         if(PhotonNetwork.IsMasterClient){
-            if(gameStarted){
-                if(timeBtwCards <= 0){
-                    timeBtwCards = 5f;
-                    if(round == 0){
-                        Debug.Log("Flop");
-                        view.RPC("playCard", RpcTarget.All, UnityEngine.Random.Range(0,tempDeck.Count), 0);
-                        view.RPC("playCard", RpcTarget.All, UnityEngine.Random.Range(0,tempDeck.Count), 1);
-                        view.RPC("playCard", RpcTarget.All, UnityEngine.Random.Range(0,tempDeck.Count), 2);
-                        round++;
-                    }
-                    else if(round == 1){
-                        Debug.Log("River");
-                        view.RPC("playCard", RpcTarget.All, UnityEngine.Random.Range(0,tempDeck.Count), 3);
-                        round++;
-                    }
-                    else if(round == 2){
-                        Debug.Log("Turn");
-                        view.RPC("playCard", RpcTarget.All, UnityEngine.Random.Range(0,tempDeck.Count), 4);
-                        round++;
-                    }
-                    else{
-                        Debug.Log("Reset");
-                        round = 0;
-                        NewRound();
-                    }
-                }else{
-                    timeBtwCards -= Time.deltaTime;
-                }
+            for(int i = 0; i < 5; i++){
+                dealerCards[i] = PhotonNetwork.Instantiate(card.name, new Vector2(0,0), Quaternion.identity);
             }
         }
+
+        for(int i = 0; i < 5; i++){
+            Vector2 spawnPosition = spawnPoints[i].GetComponent<Transform>().localPosition;
+            Vector3 spawnScale = spawnPoints[i].GetComponent<Transform>().localScale;
+            dealerCards[i].transform.localScale = spawnScale;
+            dealerCards[i].GetComponent<Transform>().position = spawnPosition;
+        }
     }
+
+    // private void Update(){
+
+    //     if (PhotonNetwork.IsMasterClient == false){
+    //         return;
+    //     }
+
+    //     if(timeBtwCards <= 0){
+    //         Debug.Log("here");
+    //         if(round == 0){
+    //             Flop();
+    //             round++;
+    //         }
+    //         else if(round == 1){
+    //             Turn();
+    //             round++;
+    //         }
+    //         else if(round == 2){
+    //             River();
+    //             round++;
+    //         }
+    //         else{
+    //             round = 0;
+    //             NewRound();
+    //         }
+    //     }else{
+    //         timeBtwCards -= Time.deltaTime;
+    //     }
+    // }
     private void NewRound(){
         tempDeck = fullDeck;
-        
-        for(int i = 0; i < dealerCards.Length; i++){
-            dealerCards[i].GetComponent<Image>().color = new Color(255f,255f,255f,0f);       
-        }
-
+        dealerCards = new GameObject[5];
         valuesTo13 = new int[13];
         suitesTo13 = new int[13];
         suites = new int[4];
+
+        for(int i = 0; i < 5; i++){
+            Vector3 spawnPosition = spawnPoints[i].position;
+            Vector3 spawnScale = spawnPoints[i].localScale;
+            dealerCards[i] = PhotonNetwork.Instantiate(card.name, spawnPosition, Quaternion.identity);
+            dealerCards[i].transform.localScale = spawnScale;
+        }
     }
-
-
 
 
     #region cardConversion
@@ -173,14 +179,36 @@ public class Dealer : MonoBehaviour
     #endregion
     
     #region dealMethods
+    private void Flop(){
+        for(int i = 0; i < 3; i++){
 
-    [PunRPC]
-    private void playCard(int randomCard, int i){
-        Sprite currentCard = tempDeck[randomCard];
-        tempDeck.Remove(currentCard);
-        dealerCards[i].GetComponent<Image>().sprite = currentCard;
-        dealerCards[i].GetComponent<Image>().color = new Color(255f,255f,255f,255f);
+            Debug.Log("Flop");
+
+            int randomCard = UnityEngine.Random.Range(0,tempDeck.Count);
+            Sprite currentCard = tempDeck[randomCard];
+            dealerCards[i].GetComponent<Image>().sprite = currentCard;
+            tempDeck.Remove(currentCard);
+            
+            valuesToArray(currentCard);
+        }
     }
+
+    private void River(){
+        int randomCard = UnityEngine.Random.Range(0,tempDeck.Count);
+        Sprite currentCard = tempDeck[randomCard];
+        dealerCards[3].GetComponent<Image>().sprite = currentCard;
+        valuesToArray(tempDeck[randomCard]);
+        tempDeck.Remove(tempDeck[randomCard]);
+        
+    }
+
+    private void Turn(){
+        int randomCard = UnityEngine.Random.Range(0,tempDeck.Count);
+        Sprite currentCard = tempDeck[randomCard];
+        dealerCards[4].GetComponent<Image>().sprite = currentCard;
+        valuesToArray(tempDeck[randomCard]);
+        tempDeck.Remove(tempDeck[randomCard]);
+    }   
 
     #endregion
     

@@ -6,6 +6,9 @@ TagManager:
   tags:
   - Background
   - SpawnPoints
+  - CardPoints
+  - card
+  - CommunityCards
   layers:
   - Default
   - TransparentFX

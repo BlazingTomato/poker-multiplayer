@@ -19,7 +19,7 @@ public class PlayerController : MonoBehaviour
         spawnPoints = GameObject.FindGameObjectsWithTag("SpawnPoints");
         view = GetComponent<PhotonView>();
         this.transform.SetParent(canvas.transform, false);
-        Vector2 position = spawnPoints[PhotonNetwork.CountOfPlayers - 1].transform.position;
+        Vector2 position = spawnPoints[PhotonNetwork.CountOfPlayers].transform.position;
         this.GetComponent<Transform>().position = position;
     }
 
