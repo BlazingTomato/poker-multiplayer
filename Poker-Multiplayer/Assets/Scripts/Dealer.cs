@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using System;
-using Photon.Pun;
+using Photon.Pun; 
 
 public class Dealer : MonoBehaviour
 {
@@ -20,23 +20,25 @@ public class Dealer : MonoBehaviour
     int round = 0;
     bool gameStarted = false;
 
+
+
     
 
-    //temp Card Values
-    int[] valuesTo13;
-    int[] suitesTo13;
-    int[] suites;
-
-
+    [Header("Temp Card Values")]
+    [SerializeField] int[] valuesTo13;
+    [SerializeField] int[] suitesTo13;
+    [SerializeField] int[] suites;
     [SerializeField] GameObject[] dealerCards = new GameObject[5];
     PhotonView view;
+
+    [SerializeField] GameObject textFile;
     
     private void Start() {
 
         tempDeck = fullDeck;
         valuesTo13 = new int[13];
         suitesTo13 = new int[13];
-        suites = new int[4];
+        suites = new int[5];
 
         view = GetComponent<PhotonView>();
         
@@ -54,37 +56,55 @@ public class Dealer : MonoBehaviour
 
     private void Update(){
 
-        if(PhotonNetwork.IsMasterClient){
-            if(gameStarted){
-                if(timeBtwCards <= 0){
-                    timeBtwCards = 5f;
-                    if(round == 0){
-                        Debug.Log("Flop");
-                        view.RPC("playCard", RpcTarget.All, UnityEngine.Random.Range(0,tempDeck.Count), 0);
-                        view.RPC("playCard", RpcTarget.All, UnityEngine.Random.Range(0,tempDeck.Count), 1);
-                        view.RPC("playCard", RpcTarget.All, UnityEngine.Random.Range(0,tempDeck.Count), 2);
-                        round++;
-                    }
-                    else if(round == 1){
-                        Debug.Log("River");
-                        view.RPC("playCard", RpcTarget.All, UnityEngine.Random.Range(0,tempDeck.Count), 3);
-                        round++;
-                    }
-                    else if(round == 2){
-                        Debug.Log("Turn");
-                        view.RPC("playCard", RpcTarget.All, UnityEngine.Random.Range(0,tempDeck.Count), 4);
-                        round++;
-                    }
-                    else{
-                        Debug.Log("Reset");
-                        round = 0;
-                        NewRound();
-                    }
-                }else{
-                    timeBtwCards -= Time.deltaTime;
-                }
-            }
+        if(!PhotonNetwork.IsMasterClient){
+            return;
         }
+
+        if(!gameStarted){
+            return;
+        }
+
+        if(timeBtwCards <= 0){
+            timeBtwCards = 5f;
+            if(round == 0){
+                //Debug.Log("Flop");
+                view.RPC("playCard", RpcTarget.All, UnityEngine.Random.Range(0,tempDeck.Count), 0);
+                view.RPC("playCard", RpcTarget.All, UnityEngine.Random.Range(0,tempDeck.Count), 1);
+                view.RPC("playCard", RpcTarget.All, UnityEngine.Random.Range(0,tempDeck.Count), 2);
+
+                view.RPC("valuesToArray",RpcTarget.All, dealerCards[0].GetComponent<Image>().sprite.name);
+                view.RPC("valuesToArray",RpcTarget.All, dealerCards[1].GetComponent<Image>().sprite.name);
+                view.RPC("valuesToArray",RpcTarget.All, dealerCards[2].GetComponent<Image>().sprite.name);
+
+                round++;
+            }
+            else if(round == 1){
+                //Debug.Log("River");
+                view.RPC("playCard", RpcTarget.All, UnityEngine.Random.Range(0,tempDeck.Count), 3);
+
+                view.RPC("valuesToArray",RpcTarget.All, dealerCards[3].GetComponent<Image>().sprite.name);
+
+                round++;
+            }
+            else if(round == 2){
+                //Debug.Log("Turn");
+                view.RPC("playCard", RpcTarget.All, UnityEngine.Random.Range(0,tempDeck.Count), 4);
+                view.RPC("valuesToArray",RpcTarget.All, dealerCards[4].GetComponent<Image>().sprite.name);
+                round++;
+            }
+            else{
+                Debug.Log("Reset");
+                round = 0;
+                NewRound();
+            }
+
+            view.RPC("HighestHandText", RpcTarget.All);
+
+        }else{
+            timeBtwCards -= Time.deltaTime;
+        }
+            
+        
     }
     private void NewRound(){
         tempDeck = fullDeck;
@@ -95,9 +115,10 @@ public class Dealer : MonoBehaviour
 
         valuesTo13 = new int[13];
         suitesTo13 = new int[13];
-        suites = new int[4];
+        suites = new int[5];
     }
 
+    
 
 
 
@@ -106,9 +127,8 @@ public class Dealer : MonoBehaviour
     //for face cards, take the format and take the beginning to the underscore
     // convert face card string to the corresponding value
     // initalize to the array
-    private int CardToValue(Sprite card){
+    private int CardToValue(string cardName){
 
-        string cardName = card.name;
         string cardValue = cardName.Substring(0,cardName.IndexOf("_"));
 
         int value = -1;
@@ -131,26 +151,33 @@ public class Dealer : MonoBehaviour
             }
         }
 
-        return value - 1;
+        return value - 2;
     }
     
     //convert card suite string to value
     // get the index of the 2nd underscore to the end e.g. string = "spades"
     //convert string to corresponding values
-    private int CardToSuite(Sprite card){
-        string cardName = card.name;
-        string cardValue = cardName.Substring(cardName.IndexOf("_",cardName.IndexOf("_",3))+1);
+    
+    
+    private int CardToSuite(string cardName){
+        
+        int firstIndexOfUnder = cardName.IndexOf("_");
+        int secondIndexOfUnder = cardName.IndexOf("_",firstIndexOfUnder + 1);
+
+        string cardValue = cardName.Substring(secondIndexOfUnder+1);
+
+        Debug.Log("Suite: " + cardValue);
 
         int value = -1;
 
         if(cardValue.Equals("clubs")){
-            value = 0;
-        }else if(cardValue.Equals("diamonds")){
             value = 1;
-        }else if(cardValue.Equals("hearts")){
+        }else if(cardValue.Equals("diamonds")){
             value = 2;
-        }else if(cardValue.Equals("spades")){
+        }else if(cardValue.Equals("hearts")){
             value = 3;
+        }else if(cardValue.Equals("spades")){
+            value = 4;
         }
 
         return value;
@@ -161,10 +188,17 @@ public class Dealer : MonoBehaviour
     Add +1 in the values array at the index value. Add +1 in the suites array at the index value
 
     */
-    private void valuesToArray(Sprite currentCard){
+
+    [PunRPC]
+    private void valuesToArray(string currentCard){
+
+        Debug.Log(currentCard);
 
         int value = CardToValue(currentCard);
         int suite = CardToSuite(currentCard);
+
+        Debug.Log("value: " + value + " suite: " + suite);
+
         valuesTo13[value]++;
         suitesTo13[value] = suite;
         suites[suite]++;
@@ -186,6 +220,65 @@ public class Dealer : MonoBehaviour
     
     #region calcMethods
 
+    [ContextMenu("getHighestHand")]  
+
+    [PunRPC]
+    void HighestHandText(){
+        textFile.GetComponent<TMPro.TMP_Text>().text = getHighestHand();
+    }  
+    string getHighestHand(){
+
+        if(royalStraight() && isFlushRange(12, 8)){
+            return "Royal Flush";
+        }
+
+        int straight = getStraight();
+
+        if(straight != 1 && isFlushRange(straight,straight-4)){
+            return "Straight Flush: " + straight;
+        }
+
+        int fourOfAKind = getFourOfAKind();
+        
+        if(fourOfAKind != -1){
+            return "Four of A Kind: " +  fourOfAKind;
+        }
+
+        int triple = getTriple();
+        int pair = getHighestPair();
+
+        if(triple != -1 && pair != -1){
+            return "Full house: " + triple + ", " + pair; 
+        }
+
+        int flush = getFlush();
+        int highestFlush = getHighestFlush(flush);
+
+        if(flush != -1){
+            return "Flush: " + highestFlush; 
+        }
+
+        if(straight != -1){
+            return "Straight: " + straight;
+        }
+
+        if(triple != -1){
+            return "Triple: " + triple;
+        }
+
+        int secondPair = getSecondPair(pair);
+        
+        if(pair != -1 && secondPair != -1){
+            return "Two Pair: " + pair + ", " + secondPair;
+        }
+
+        if(pair != -1){
+            return "Pair: " + pair;
+        }
+
+        return "High Card: " + getHighCard();
+
+    }
     int getHighCard(){
 
         for(int i = valuesTo13.Length - 1; i >= 0; i--){
@@ -221,7 +314,7 @@ public class Dealer : MonoBehaviour
     int getTriple(){
         
         for(int i = valuesTo13.Length - 1; i >= 0; i--){
-            if (valuesTo13[i] == 2){
+            if (valuesTo13[i] == 3){
                 return i;
             } 
         }
@@ -231,10 +324,10 @@ public class Dealer : MonoBehaviour
 
     int getStraight(){
         
-        int current = 13;
+        int current = 12;
         int count = 1;
 
-        for(int i = valuesTo13.Length - 2; i >= 0; i--){
+        for(int i = valuesTo13.Length - 1; i >= 0; i--){
             if (valuesTo13[i] == 1){
                 count++;
                 if(count == 5){
@@ -244,10 +337,19 @@ public class Dealer : MonoBehaviour
             else{
                 current = i-1;
                 count = 0;
-                i--;
             }
         }
         return -1;
+    }
+
+    bool royalStraight(){
+
+        for(int i = valuesTo13.Length - 1; i >= 9; i--){
+            if(valuesTo13[i] != 1){
+                return false;
+            }
+        }
+        return true;
     }
 
     int getFlush(){
@@ -261,11 +363,16 @@ public class Dealer : MonoBehaviour
         return -1;
     }
 
-    bool getFlushRange(int start, int end){
+    bool isFlushRange(int end, int start){
 
-        int flushValue = suitesTo13[start-1];
-        for(int i = start; i < end; i++){
-            if(suitesTo13[i] != flushValue){
+        if(end == -1 || suitesTo13[end] == 0){
+            return false;
+        }
+
+        int suiteValue = suitesTo13[end];
+
+        for(int i = end; i >= start; i--){
+            if(suitesTo13[i] != suiteValue){
                 return false;
             }
         }
@@ -284,6 +391,19 @@ public class Dealer : MonoBehaviour
         return -1;
     }
 
+    int getHighestFlush(int flush){
+        if(flush == -1){
+            return -1;
+        }
+        
+        for(int i = valuesTo13.Length - 1; i >= 0; i--){
+            if (suitesTo13[i] == flush){
+                return  i;
+            }
+        }
+
+        return -1;
+    }
 
     #endregion
 
